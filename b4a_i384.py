@@ -2,7 +2,7 @@ MOD_i384 = 2 ** 384
 KEY_i384 = 0xFF9594D0AF596B4CD9AF4D7BB0FD5D75BB4385394C89D7A657A1F7CE34522B7AAE68F22B8AD89C66BAB0FF39522126E7
 IKEY_i384 = pow(KEY_i384, -1, MOD_i384)
 
-b4a_i384_symbols = {
+symbols = {
     0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e',
     5: 'f', 6: 'g', 7: 'h', 8: 'i', 9: 'j',
     10: 'k', 11: 'l', 12: 'm', 13: 'n', 14: 'o',
@@ -17,7 +17,7 @@ b4a_i384_symbols = {
     55: '3', 56: '4', 57: '5', 58: '6', 59: '7',
     60: '8', 61: '9', 62: '(', 63: ')'
 }
-b4a_i384_inv_symbols = {
+inv_symbols = {
     'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4,
     'f': 5, 'g': 6, 'h': 7, 'i': 8, 'j': 9,
     'k': 10, 'l': 11, 'm': 12, 'n': 13, 'o': 14,
@@ -36,20 +36,20 @@ b4a_i384_inv_symbols = {
 
 def b4a_i384_encode(b4a_i384: int) -> str:
     i384 = ((b4a_i384 + 1) * KEY_i384) % MOD_i384
-    symbols = []
+    s_list = []
         
     for i in range(64):
         i6 = i384 >> 6 * i & (2 ** 6 - 1)
-        symbols.append(b4a_i384_symbols[i6])
+        s_list.append(symbols[i6])
         
-    return f"b4a_{''.join(symbols)}"
+    return f"b4a_{''.join(s_list)}"
 
 
 def b4a_i384_decode(b4a_i384_encoded: str) -> int:
     i384 = 0
 
     for i, s in enumerate(b4a_i384_encoded[4:]):
-        i6 = b4a_i384_inv_symbols[s]
+        i6 = inv_symbols[s]
         i384 |= i6 << 6 * i
 
     return (i384 * IKEY_i384) % MOD_i384 - 1

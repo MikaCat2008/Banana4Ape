@@ -1,8 +1,11 @@
 from requests import Session
-from threading import Event
+from threading import Event, Lock
 from collections import deque
 
 from b4a_i384 import b4a_i384_get, b4a_i384_set, b4a_i384_decode, b4a_i384_encode
+
+logs = False
+logs_lock = Lock()
 
 mtSTART_DATA_TRANSFER = 0
 mtSEND_DATA = 1
@@ -31,8 +34,14 @@ class b4as_ClientDisconnection(BaseException):
     ...
 
 
+def b4as_port_log(port_id: int, text: str) -> None:
+    if logs:
+        with logs_lock:
+            print(f"[PORT {port_id}]: {text}")
+
+
 def b4as_create_ports(ports: dict[str, str]) -> None:
-    for i, (email, password) in enumerate(ports.items()):
+    for port_id, (email, password) in enumerate(ports.items()):
         session = Session()
         session.get("https://apes.io/signin")
         session.post(
@@ -43,11 +52,13 @@ def b4as_create_ports(ports: dict[str, str]) -> None:
             }
         )
 
-        ports_session[i] = session
-        ports_recv_event[i] = Event()
-        ports_recv_status[i] = False
-        ports_send_event[i] = Event()
-        ports_data_transfer_event[i] = Event()
+        ports_session[port_id] = session
+        ports_recv_event[port_id] = Event()
+        ports_recv_status[port_id] = False
+        ports_send_event[port_id] = Event()
+        ports_data_transfer_event[port_id] = Event()
+
+        b4as_port_log(port_id, f"created with {email=}, {password=}")
 
 
 def b4as_set_port_b4a_i384(port_id: int, b4a_i384: int) -> None:
@@ -91,6 +102,10 @@ def b4as_accept(port_id: int) -> int:
 
 
 def b4as_disconnect_client(client_id: int) -> None:
+    port_id = clients_port_id[client_id]
+    
+    b4as_port_log(port_id, f"client disconnected {client_id=}")
+
     del clients_port_id[client_id]
 
 
@@ -106,6 +121,8 @@ def b4as_wait_for_client_answer(event: Event, client_id: int) -> None:
 def b4as_recv(port_id: int) -> list[int]:
     client_id = ports_client_id[port_id]
 
+    b4as_port_log(port_id, f"start recv from {client_id=}")
+
     while not ports_recv_status[port_id]:
         b4as_wait_for_client_answer(ports_recv_event[port_id], client_id)
 
@@ -113,6 +130,9 @@ def b4as_recv(port_id: int) -> list[int]:
 
     b4a_i384_list = clients_b4a_i384_list[client_id]
     clients_b4a_i384_list[client_id] = []
+
+    b4as_port_log(port_id, f"stop recv from {client_id=}")
+    b4as_port_log(port_id, f"received {len(b4a_i384_list)} b4a_i384 blocks from {client_id=}")
 
     return b4a_i384_list
 
@@ -124,18 +144,30 @@ def b4as_send(port_id: int, b4a_i384_list: list[int]) -> None:
     b4a_i384 = b4a_i384_set(b4a_i384, 5, 8, client_id)
     b4as_set_port_b4a_i384(port_id, b4a_i384)
 
+    b4as_port_log(port_id, f"start data transfer for {client_id=}")
+
     b4as_wait_for_client_answer(ports_data_transfer_event[port_id], client_id)
 
+    b4as_port_log(port_id, f"client ready for data transfer {client_id=}")
+
     for b4a_i384 in b4a_i384_list:
+        b4a_i384 = b4a_i384_set(b4a_i384, 2, 3, rtSEND_DATA) 
+        b4a_i384 = b4a_i384_set(b4a_i384, 5, 8, client_id) 
         b4as_set_port_b4a_i384(port_id, b4a_i384)
 
-        print(f"[PORT {port_id}] sent b4a_i384 to client_id={client_id}")
+        b4as_port_log(port_id, f"sent b4a_i384 to {client_id=}")
 
         b4as_wait_for_client_answer(ports_send_event[port_id], client_id)
+        
+        b4as_port_log(port_id, f"client got data {client_id=}")
+
+    b4as_port_log(port_id, f"sent {len(b4a_i384_list)} b4a_i384 blocks to {client_id=}")
 
     b4a_i384 = b4a_i384_set(0, 2, 3, rtSTOP_DATA_TRANSFER)
     b4a_i384 = b4a_i384_set(b4a_i384, 5, 8, client_id)
     b4as_set_port_b4a_i384(port_id, b4a_i384)
+
+    b4as_port_log(port_id, f"stop data transfer for {client_id=}")
 
     b4as_disconnect_client(client_id)
 
@@ -174,17 +206,17 @@ def message_handler(client: Client, message: Message) -> None:
             clients_b4a_i384_list[client_id].append(b4a_i384)
             ports_recv_event[port_id].set()
 
-            print(f"[PORT {port_id}] received b4a_i384 from client_id={client_id}")
+            b4as_port_log(port_id, f"received b4a_i384 from {client_id=}")
         elif method_type == mtSTOP_DATA_TRANSFER:
             ports_recv_status[port_id] = True
             ports_recv_event[port_id].set()
 
-            print(f"[PORT {port_id}] stop data transfer from client_id={client_id}")
+            b4as_port_log(port_id, f"stop data transfer from {client_id=}")
         elif method_type == mtREADY_FOR_DATA_TRANSFER:
             ports_data_transfer_event[port_id].set()
             
-            print(f"[PORT {port_id}] ready for data transfer client_id={client_id}")
+            b4as_port_log(port_id, f"ready for data transfer {client_id=}")
         elif method_type == mtGOT_DATA:
             ports_send_event[port_id].set()
 
-            print(f"[PORT {port_id}] got data client_id={client_id}")
+            b4as_port_log(port_id, f"got data {client_id=}")
