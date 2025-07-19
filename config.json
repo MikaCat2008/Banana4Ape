@@ -1,0 +1,7 @@
+{
+    "file_paths": [
+        "src/main.js",
+        "src/events_override.js",
+        "src/ui/menu_manager.js"
+    ]
+}

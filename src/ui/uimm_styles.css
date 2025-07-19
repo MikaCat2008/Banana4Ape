@@ -1,0 +1,64 @@
+#uimm {
+    top: calc(50% - 200px);
+    left: calc(50% - 400px);
+    width: 800px;
+    height: 400px;
+    position: absolute;
+
+    border-top-left-radius: 20px;
+
+    background-color: #1e1b25;
+
+    z-index: 999999!important;
+}
+
+#uimm .top {
+    display: flex;
+
+    width: 100%;
+    height: 60px;
+}
+
+#uimm .top .left {
+
+    width: 60px;
+    height: 100%;
+}
+
+#uimm .top .right {
+    display: flex;
+    align-items: center;
+
+    width: 740px;
+}
+
+#uimm .top .right span {
+    font-size: 28px;
+    margin-left: 10px;
+}
+
+#uimm .bottom {
+    display: flex;
+
+    width: 100%;
+    height: 340px;
+}
+
+#uimm .bottom .left {
+    width: 60px;
+    height: 100%;
+}
+
+#uimm .bottom .left .button {
+    width: 60px;
+    height: 60px;
+}
+
+#uimm .bottom .right {
+    width: 740px;
+    height: 100%;
+
+    border-top-left-radius: 20px;
+    
+    background-color: #17151b;
+}
